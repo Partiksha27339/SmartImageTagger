@@ -1,36 +1,29 @@
 import streamlit as st
-import google.generativeai as genai
+import requests
 from PIL import Image
+import io
 
-# 1. Configuration
-genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-
-# 2. Dynamic Model Detection (404 Error fix karne ke liye)
-def get_available_model():
-    # Yeh list check karega ki aapke project mein kya available hai
-    for m in genai.list_models():
-        if 'generateContent' in m.supported_generation_methods:
-            # Hum 'gemini-1.5' ya 'gemini-pro' dhund rahe hain
-            if 'gemini-1.5' in m.name or 'gemini-pro' in m.name:
-                return genai.GenerativeModel(m.name)
-    return None
-
-model = get_available_model()
+# Hugging Face Public API
+API_URL = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base"
 
 st.title("Smart Image Tagger")
 
-if model is None:
-    st.error("Error: Aapke project mein koi bhi Gemini model available nahi hai. AI Studio mein NAYA PROJECT banayein.")
-else:
-    uploaded_file = st.file_uploader("Image upload karo...", type=["jpg", "png"])
+uploaded_file = st.file_uploader("Image upload karo...", type=["jpg", "png"])
+
+if uploaded_file is not None:
+    image = Image.open(uploaded_file)
+    st.image(image, caption="Uploaded Image")
     
-    if uploaded_file is not None:
-        image = Image.open(uploaded_file)
-        st.image(image, caption="Uploaded Image")
-        
-        if st.button("Tags Suggest Karo"):
-            try:
-                response = model.generate_content(["Is image ke liye tags suggest karo", image])
-                st.write(response.text)
-            except Exception as e:
-                st.error(f"Execution Error: {e}")
+    if st.button("Tags Generate Karo"):
+        with st.spinner("Analyzing..."):
+            img_byte_arr = io.BytesIO()
+            image.save(img_byte_arr, format='JPEG')
+            
+            # API Request
+            response = requests.post(API_URL, data=img_byte_arr.getvalue())
+            
+            if response.status_code == 200:
+                result = response.json()
+                st.write("Result:", result[0]['generated_text'])
+            else:
+                st.error("Server busy hai, please wait.")

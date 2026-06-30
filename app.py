@@ -1,13 +1,11 @@
 import streamlit as st
-import google.generativeai as genai
+from openai import OpenAI
 from PIL import Image
 
-# 1. API Key set karo (Streamlit ke secrets se)
-api_key = st.secrets["GOOGLE_API_KEY"]
-genai.configure(api_key=api_key)
+# Secrets se OpenAI Key lein
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# 2. App ka design
-st.title("Smart Image Tagger")
+st.title("Smart Image Tagger (via ChatGPT)")
 
 uploaded_file = st.file_uploader("Image upload karo...", type=["jpg", "jpeg", "png"])
 
@@ -16,7 +14,11 @@ if uploaded_file is not None:
     st.image(image, caption="Uploaded Image", use_column_width=True)
     
     if st.button("Tag generate karo"):
-        # Gemini model call
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(["Is image ke liye tags suggest karo", image])
-        st.write(response.text)
+        # ChatGPT (GPT-4o) ko call karein
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "user", "content": "Is image ke liye tags suggest karo"}
+            ]
+        )
+        st.write(response.choices[0].message.content)
